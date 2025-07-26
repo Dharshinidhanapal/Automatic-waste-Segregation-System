@@ -1,0 +1,56 @@
+#include <Servo.h>
+
+const int moisturePin = A0;       // Soil moisture sensor pin
+const int inductivePin = 2;       // Inductive sensor digital pin
+const int irSensorPin = 3;        // IR sensor digital pin
+const int trigPin = 4;            // Ultrasonic sensor trigger pin
+const int echoPin = 5;            // Ultrasonic sensor echo pin
+
+Servo segregatorServo;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(inductivePin, INPUT);
+  pinMode(irSensorPin, INPUT);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  segregatorServo.attach(9);      // Servo motor connected to pin 9
+  segregatorServo.write(90);      // Initialize servo to neutral position
+}
+
+void loop() {
+  if (digitalRead(irSensorPin) == LOW) { // Waste detected at entry
+    delay(500); // Debounce delay
+
+    // Measure distance using ultrasonic sensor
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+    long duration = pulseIn(echoPin, HIGH);
+    float distance = duration * 0.034 / 2;
+
+    if (distance < 10) { // Waste is within 10 cm
+      int moistureValue = analogRead(moisturePin);
+      int inductiveValue = digitalRead(inductivePin);
+
+      if (inductiveValue == HIGH) {
+        // Metallic waste detected
+        segregatorServo.write(0); // Move servo to metallic bin position
+        Serial.println("Metallic waste detected.");
+      } else if (moistureValue < 500) {
+        // Wet waste detected
+        segregatorServo.write(45); // Move servo to wet bin position
+        Serial.println("Wet waste detected.");
+      } else {
+        // Dry waste detected
+        segregatorServo.write(135); // Move servo to dry bin position
+        Serial.println("Dry waste detected.");
+      }
+
+      delay(2000); // Allow time for waste to be directed
+      segregatorServo.write(90); // Reset servo to neutral position
+    }
+  }
+}
